@@ -65,7 +65,7 @@
     } ],
     "signals": [ {
         "name": "path",
-        "data": [ { "value": "/home/asia/Pictures" } ]
+        "data": [ { "value": "/home/asia/Pictures/tmp" } ]
     }, {
         "name": "path_2",
         "data": [ { "value": "/home/asia/Pictures/thumbs" } ]

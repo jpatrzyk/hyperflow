@@ -15,31 +15,64 @@ function uploadImage(ins, outs, config, cb) {
 		return cb(null, outs); 
 	console.log("Uploading image: ", ins[0].data[0]);
 	var path = ins[0].data[0].value;
-	var form = new FormData();
-	form.append('myBlob', fs.createReadStream(path));
-	var url = 'http://' + apphost + ':' + appport + '/images';
 
-	form.submit(url, function(err, res) {
+	var doUpload = function(urlToUpload) {
+		var form = new FormData();
+		form.append('myBlob', fs.createReadStream(path));
+		
+		form.submit(urlToUpload, function(err, res) {
+			if(res.statusCode == 200) {
+				res.on('data', function (chunk) {
+					var uploadedId = String(chunk);
+					console.log("Image uploaded with id: ", uploadedId);
+					outs[0].data = [];
+					outs[0].data.push({ "path": path, "value": uploadedId });
+					cb(null, outs);
+				});
+			}
+			else {
+				console.log('Image upload error');
+				console.log('STATUS: ' + res.statusCode);
+				console.log('HEADERS: ' + JSON.stringify(res.headers));
+				res.setEncoding('utf8');
+				res.on('data', function (chunk) {
+					console.log('BODY: ' + chunk);
+				});
+				cb('Image upload error');
+			}
+		});
+	};
+
+	var options = {
+	  host: apphost,
+	  port: appport,
+	  path: '/upload',
+	  method: 'GET'
+	};
+
+	var req = http.request(options, function(res) {
 		if(res.statusCode == 200) {
-			res.on('data', function (chunk) {
-				var uploadedId = Number(chunk);
-				console.log("Image uploaded with id: ", uploadedId);
-				outs[0].data = [];
-				outs[0].data.push({ "path": path, "value": uploadedId });
-				cb(null, outs);
-			});
+		    res.on('data', function (chunk) {
+		        var uploadUrl = String(chunk);
+		        console.log('uploadUrl: ', uploadUrl);
+				doUpload(uploadUrl);
+		    });
 		}
 		else {
-			console.log('Image upload error');
-			console.log('STATUS: ' + res.statusCode);
-			console.log('HEADERS: ' + JSON.stringify(res.headers));
-			res.setEncoding('utf8');
-			res.on('data', function (chunk) {
-				console.log('BODY: ' + chunk);
-			});
-			cb('Image upload error');
+		    console.log('STATUS: ' + res.statusCode);
+		    console.log('HEADERS: ' + JSON.stringify(res.headers));
+		    res.setEncoding('utf8');
+		    res.on('data', function (chunk) {
+		      console.log('BODY: ' + chunk);
+		    });
 		}
 	});
+
+	req.on('error', function(e) {
+	  console.log('problem with request: ' + e.message);
+	});
+
+	req.end();
 }
 
 function resizeImage(ins, outs, config, cb) {
@@ -47,8 +80,7 @@ function resizeImage(ins, outs, config, cb) {
 		return cb(null, outs); 
 	console.log("Resizing image with id: ", ins[1].data[0].value);
 	var imagePath = ins[1].data[0].path;
-	var imageId = ins[1].data[0].value;
-	
+	var imageId = String(ins[1].data[0].value);	
 	var width = ins[0].data[0].width;
 	var height = ins[0].data[0].height;
 
@@ -81,7 +113,7 @@ function resizeImage(ins, outs, config, cb) {
 		var req = http.request(options, function(res) {
 			if(res.statusCode == 200) {
 				res.on('data', function (chunk) {
-					var resultImageId = Number(chunk);
+					var resultImageId = String(chunk);
 					if(resultImageId == -1) {
 						setTimeout(getResultImageId(imagePath_2, taskId, outs_2, callback), miliseconds);
 					}
